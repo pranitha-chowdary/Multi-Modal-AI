@@ -1,0 +1,2 @@
+mode: function_pipeline  # function_pipeline (Phase 0-3) | agentic_graph (Phase 4)
+hq_node: null

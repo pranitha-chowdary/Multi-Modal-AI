@@ -1,0 +1,18 @@
+# Core dependencies for the ADIS pipeline. Every perception agent runs real
+# pretrained-model inference (CLIP for vision, a real NLI zero-shot model for
+# text) - there is no dependency-free "mock" mode. First run downloads model
+# weights from HuggingFace Hub (requires network access), then they're cached
+# locally (~/.cache/huggingface).
+
+networkx>=3.2
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+pyyaml>=6.0
+numpy>=1.26
+pillow>=10.2
+pytest>=8.0
+
+torch>=2.2
+transformers>=4.38
+osmnx>=1.9             # real-time OpenStreetMap road/facility ingestion for the knowledge graph

@@ -1,0 +1,5 @@
+model_name: openai/clip-vit-base-patch32  # real pretrained CLIP checkpoint used for zero-shot inference
+input_size: 512
+backbone: vit_base_patch16_224  # placeholder backbone for Phase 1 fine-tuning on xBD/FloodNet
+num_damage_classes: 4
+num_flood_classes: 3

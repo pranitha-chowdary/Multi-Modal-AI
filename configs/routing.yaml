@@ -1,0 +1,3 @@
+strategy: dijkstra_baseline  # dijkstra_baseline | gnn (Phase 3)
+partial_block_penalty_multiplier: 3
+unknown_status_penalty_multiplier: 1.5

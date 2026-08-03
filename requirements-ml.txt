@@ -1,0 +1,16 @@
+# Heavy ML dependencies for Phase 1+ fine-tuning/training (real-time inference
+# already works with just requirements.txt - torch/transformers/osmnx are core).
+# Install once you start training/fine-tuning:
+#   pip install -r requirements.txt -r requirements-ml.txt
+
+torchvision>=0.17
+accelerate>=0.27
+timm>=0.9              # ViT backbones for damage/flood vision agent fine-tuning
+peft>=0.10             # LoRA fine-tuning for the text triage LLM
+sentence-transformers>=2.5
+torch-geometric>=2.5   # GNN evacuation routing (Phase 3)
+langgraph>=0.0.30       # agentic multi-agent orchestrator (Phase 4)
+langchain>=0.1
+rasterio>=1.3          # satellite imagery I/O (xBD/FloodNet are GeoTIFF-adjacent)
+geopandas>=0.14
+scikit-learn>=1.4

@@ -1,0 +1,2 @@
+model_name: typeform/distilbert-base-uncased-mnli  # real pretrained zero-shot NLI checkpoint
+max_length: 256

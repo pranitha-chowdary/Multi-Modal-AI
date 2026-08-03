@@ -1,0 +1,35 @@
+## Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+## Environment / secrets
+.env
+*.env.local
+
+## Data & model artifacts (large binary files should not go into git)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+checkpoints/
+.cache/
+
+## Notebooks
+.ipynb_checkpoints/
+
+## OS / editor
+.DS_Store
+.vscode/

@@ -1,3 +1,5 @@
+import { shareLocation } from "../services/share.js";
+
 const TEAM_LABELS = {
   rescue: "Rescue",
   logistics: "Logistics / Road Clearance",
@@ -39,6 +41,13 @@ export default function ResponderBoard({ dispatch, onNotify }) {
                   Notify {TEAM_LABELS[team] ?? team}
                 </button>
               )}
+              <button
+                type="button"
+                className="share-btn"
+                onClick={() => shareLocation(item.location_id, item.action)}
+              >
+                Share with locality
+              </button>
             </div>
           ))}
         </div>

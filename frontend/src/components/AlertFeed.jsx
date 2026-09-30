@@ -1,3 +1,5 @@
+import { shareLocation } from "../services/share.js";
+
 const GATE_LABELS = {
   dispatch: "confirmed",
   review: "needs review",
@@ -39,6 +41,13 @@ export default function AlertFeed({ alerts, onNotify }) {
                     Notify
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="share-btn"
+                  onClick={() => shareLocation(item.location_id, item.action)}
+                >
+                  Share
+                </button>
               </div>
             ))}
           </li>

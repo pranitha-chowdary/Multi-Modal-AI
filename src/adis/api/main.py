@@ -133,6 +133,19 @@ async def analyze(request: AnalyzeRequest) -> dict:
     return result
 
 
+@app.get("/dispatch/{location_id}")
+def get_dispatch_item(location_id: str) -> dict:
+    """Public read-only lookup for a single location's current action item --
+    backs the shareable community alert page (/share/{location_id}) so people
+    in the affected locality can see the plan/route without needing dashboard
+    access.
+    """
+    item = _latest_items.get(location_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Unknown location_id: {location_id}")
+    return item
+
+
 @app.post("/dispatch/{location_id}/notify")
 async def notify_responders(location_id: str) -> dict:
     """Marks an action item as sent to its responder team and broadcasts the

@@ -275,6 +275,73 @@ body {
   color: #63e08a;
 }
 
+.share-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #4a3a6b;
+  background: #241a36;
+  color: #c7a8ff;
+  cursor: pointer;
+}
+
+.share-btn:hover {
+  background: #2e2246;
+}
+
+/* Public share view (/share/{locationId}) */
+.share-view {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.share-view h1 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.share-card {
+  background: #1a1f29;
+  border: 1px solid #262b36;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.share-location {
+  font-size: 1rem;
+  color: #9fd3ff;
+  font-weight: 600;
+}
+
+.share-action {
+  font-size: 1.05rem;
+}
+
+.share-rationale {
+  color: #8a8f99;
+  font-size: 0.85rem;
+}
+
+.share-map {
+  height: 320px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #262b36;
+}
+
+.share-footer {
+  color: #8a8f99;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
 /* Responder dispatch board */
 .responder-board {
   display: flex;

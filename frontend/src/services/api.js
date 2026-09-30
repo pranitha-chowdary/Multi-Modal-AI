@@ -30,3 +30,16 @@ export async function notifyTeam(locationId) {
   }
   return response.json();
 }
+
+/**
+ * Public read-only lookup used by the shareable community alert page
+ * (/share/{locationId}) -- no auth, just the current known action item.
+ */
+export async function getDispatchItem(locationId) {
+  const response = await fetch(`/api/dispatch/${encodeURIComponent(locationId)}`);
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Lookup failed (${response.status}): ${detail}`);
+  }
+  return response.json();
+}

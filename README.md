@@ -1,6 +1,6 @@
-# ADIS — Agentic Disaster Intelligence System
+# ADIS — Autonomous Disaster Intelligence System
 
-ADIS is an agentic, multimodal AI system that fuses satellite/drone imagery, CCTV,
+ADIS is an autonomous, multimodal AI system that fuses satellite/drone imagery, CCTV,
 social media, and emergency-call data to produce a live, prioritized action plan for
 disaster responders — closing the loop between **perception** (what's damaged),
 **verification** (what's actually true), and **routing** (how to reach it safely).

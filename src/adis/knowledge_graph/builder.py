@@ -32,8 +32,11 @@ class KnowledgeGraphBuilder:
         self._edge_by_location: dict[str, tuple[str, str]] = {}
         self._node_by_location: dict[str, str] = {}
 
-    def add_intersection(self, node_id: str) -> None:
-        self.graph.add_node(node_id, node_type=NodeType.INTERSECTION)
+    def add_intersection(self, node_id: str, lat: float | None = None, lon: float | None = None) -> None:
+        # lat/lon are optional (real coordinates from from_osm, or a manual caller
+        # that has them) - needed to spatially snap external live-feed events
+        # (e.g. NASA EONET disaster coordinates) to the nearest graph node.
+        self.graph.add_node(node_id, node_type=NodeType.INTERSECTION, lat=lat, lon=lon)
 
     def add_facility(
         self,
@@ -63,11 +66,20 @@ class KnowledgeGraphBuilder:
         self._edge_by_location[location_id] = (node_a, node_b)
 
     def apply_evidence(self, evidence: VerifiedEvidence) -> None:
-        """Update the graph edge/node matching evidence.location_id."""
+        """Update the graph edge/node matching evidence.location_id.
+
+        Evidence that failed the confidence/consistency gate (see
+        `CrossModalVerifier`) is not trusted as ground truth here: a
+        "low_confidence" road/facility status is recorded as UNKNOWN so the
+        router treats it cautiously (extra cost, not an automatic pass or
+        block) instead of routing around/through it with false certainty.
+        """
         status = {
             "clear": RoadStatus.CLEAR,
             "blocked": RoadStatus.BLOCKED,
         }.get(evidence.road_status, RoadStatus.UNKNOWN)
+        if evidence.verification_status == "low_confidence":
+            status = RoadStatus.UNKNOWN
 
         if evidence.location_id in self._edge_by_location:
             edge = self._edge_by_location[evidence.location_id]
@@ -79,6 +91,8 @@ class KnowledgeGraphBuilder:
             facility_status = (
                 FacilityStatus.NON_FUNCTIONAL if status == RoadStatus.BLOCKED else FacilityStatus.FUNCTIONAL
             )
+            if evidence.verification_status == "low_confidence":
+                facility_status = FacilityStatus.UNKNOWN
             node_data["status"] = facility_status
             node_data["confidence"] = evidence.confidence
 
@@ -105,8 +119,8 @@ class KnowledgeGraphBuilder:
         road_graph = ox.graph_from_place(place_name, network_type=network_type)
         builder = cls()
 
-        for node_id in road_graph.nodes:
-            builder.add_intersection(str(node_id))
+        for node_id, data in road_graph.nodes(data=True):
+            builder.add_intersection(str(node_id), lat=data.get("y"), lon=data.get("x"))
 
         for u, v, key, data in road_graph.edges(keys=True, data=True):
             length_km = data.get("length", 0.0) / 1000.0

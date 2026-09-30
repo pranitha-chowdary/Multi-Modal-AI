@@ -8,7 +8,9 @@ one-shot requests.
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from adis.knowledge_graph.builder import KnowledgeGraphBuilder
@@ -16,13 +18,18 @@ from adis.knowledge_graph.schema import NodeType
 from adis.orchestrator.pipeline import ADISPipeline
 from adis.perception.text.model import TextTriageAgent
 from adis.perception.vision.model import VisionDamageAgent
+from adis.utils.ws_manager import ConnectionManager
 
-app = FastAPI(title="ADIS", description="Agentic Disaster Intelligence System")
+app = FastAPI(title="ADIS", description="Autonomous Disaster Intelligence System")
 
 # Real models are loaded once at process startup (not per-request) since
 # constructing them triggers real weight loading/downloads.
 _vision_agent = VisionDamageAgent()
 _text_agent = TextTriageAgent()
+
+# Shared broadcast hub: pushes action-plan updates and alerts to every
+# connected dashboard over /ws/alerts, no polling required.
+_alert_manager = ConnectionManager()
 
 
 class RoadIn(BaseModel):
@@ -67,7 +74,7 @@ def health() -> dict:
 
 
 @app.post("/analyze")
-def analyze(request: AnalyzeRequest) -> dict:
+async def analyze(request: AnalyzeRequest) -> dict:
     kg_builder = KnowledgeGraphBuilder()
     for node_id in request.intersections:
         kg_builder.add_intersection(node_id)
@@ -89,7 +96,36 @@ def analyze(request: AnalyzeRequest) -> dict:
         vision_inputs=[(v.image_path, v.location_id, v.source) for v in request.vision_inputs],
         text_inputs=[(t.text, t.location_id, t.source) for t in request.text_inputs],
     )
-    return {
+    dispatch = {
+        team: [item.__dict__ for item in items] for team, items in plan.dispatch_by_team().items()
+    }
+    result = {
         "action_plan_text": plan.as_text(),
         "items": [item.__dict__ for item in plan.items],
+        "dispatch": dispatch,
     }
+
+    # Push the freshly computed plan to every connected dashboard in real time,
+    # including the per-responder-team breakdown ("tie to responders").
+    await _alert_manager.broadcast(
+        {
+            "type": "action_plan",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            **result,
+        }
+    )
+    return result
+
+
+@app.websocket("/ws/alerts")
+async def ws_alerts(websocket: WebSocket) -> None:
+    """Streams real-time JSON alerts (action plans, ad-hoc alerts) to the
+    React dashboard. Clients only receive messages - this endpoint doesn't
+    expect any inbound payloads, but keeps reading to detect disconnects.
+    """
+    await _alert_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        _alert_manager.disconnect(websocket)

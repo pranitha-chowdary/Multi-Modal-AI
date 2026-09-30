@@ -33,3 +33,6 @@ checkpoints/
 ## OS / editor
 .DS_Store
 .vscode/
+
+## Local download cache (OSM/Overpass etc.)
+cache/

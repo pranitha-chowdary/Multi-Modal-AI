@@ -6,13 +6,16 @@
 
 networkx>=3.2
 fastapi>=0.110
-uvicorn[standard]>=0.27
+uvicorn[standard]>=0.27          # [standard] extra pulls in websockets for /ws/alerts
 pydantic>=2.6
 pyyaml>=6.0
 numpy>=1.26
 pillow>=10.2
 pytest>=8.0
+motor>=3.4              # async MongoDB driver for unstructured multi-modal data + event logs
 
 torch>=2.2
 transformers>=4.38
 osmnx>=1.9             # real-time OpenStreetMap road/facility ingestion for the knowledge graph
+scikit-learn>=1.4       # required by osmnx.distance.nearest_nodes (facility/event-to-node snapping)
+requests>=2.31          # polling real external feeds (e.g. scripts/live_feed_connector.py)

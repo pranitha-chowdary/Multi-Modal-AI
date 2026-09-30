@@ -102,7 +102,7 @@ keep this test suite green.
    dataset — the regional results are the key differentiator vs. all cited prior work
    (non-US typologies, flood-specific text).
 3. Adopt/replicate relevant protocols from DORA and DisasterBench for multi-step agent
-   orchestration evaluation, since the abstract explicitly positions ADIS against their
+   orchestration evaluation, since the abs tract explicitly positions ADIS against their
    findings.
 4. **Exit criteria:** a results table per component + end-to-end pipeline latency and
    accuracy numbers, ready to drop into a paper.

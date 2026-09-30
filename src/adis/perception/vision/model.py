@@ -47,10 +47,14 @@ _DAMAGE_PROMPTS: dict[DamageLevel, str] = {
 }
 
 _FLOOD_PROMPTS: dict[FloodLevel, str] = {
-    FloodLevel.DRY: "an aerial photo of a dry area with no flooding",
-    FloodLevel.PARTIAL: "an aerial photo of a partially flooded area with some standing water",
-    FloodLevel.FULL: "an aerial photo of a fully flooded area completely submerged in water",
+    FloodLevel.DRY: "an aerial photo of a dry, non-flooded area, possibly with rubble, debris, or destroyed buildings but no standing water",
+    FloodLevel.PARTIAL: "an aerial photo of a partially flooded area with visible standing water covering part of the ground",
+    FloodLevel.FULL: "an aerial photo of a fully flooded area completely submerged in visible standing water",
 }
+
+# Below this confidence, treat the flood prediction as unreliable and default to DRY
+# rather than asserting flooding the model isn't actually sure about.
+_FLOOD_CONFIDENCE_THRESHOLD = 0.5
 
 
 @dataclass
@@ -95,7 +99,9 @@ class VisionDamageAgent:
         image = Image.open(image_path).convert("RGB")
 
         damage_level, damage_conf = self._classify(image, self._damage_prompts, self._damage_labels)
-        flood_level, _flood_conf = self._classify(image, self._flood_prompts, self._flood_labels)
+        flood_level, flood_conf = self._classify(image, self._flood_prompts, self._flood_labels)
+        if flood_level != FloodLevel.DRY and flood_conf < _FLOOD_CONFIDENCE_THRESHOLD:
+            flood_level = FloodLevel.DRY
 
         return DamageAssessment(location_id, source, damage_level, flood_level, round(damage_conf, 3))
 

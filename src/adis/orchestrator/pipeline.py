@@ -1,12 +1,22 @@
 """End-to-end ADIS pipeline orchestrator.
 
-Baseline (Phase 0-3): a deterministic function-pipeline that wires
-perception -> fusion -> knowledge graph -> routing -> action plan.
+Stage sequence (this is the contract the pipeline must honor end-to-end):
+  perception (vision + text agents)
+  -> cross-modal verification (CrossModalVerifier.verify)
+  -> confidence/consistency gate (VerifiedEvidence.verification_status)
+  -> knowledge graph update (KnowledgeGraphBuilder.apply_evidence)
+  -> routing / plan of action (EvacuationRouter; Dijkstra baseline today,
+     Phase 3 swaps in a trained GNN edge-cost model per PLAN.md -- the
+     interface (`shortest_safe_path`) stays the same either way)
+  -> tie to responders (ActionPlan.dispatch_by_team, broadcast over
+     /ws/alerts and returned by POST /analyze)
 
-Phase 4 (see PLAN.md) upgrades the orchestration layer itself to a
-graph-guided multi-agent framework (e.g. LangGraph) where each stage is an
-autonomous agent capable of re-planning, tool use, and iterative refinement
-instead of a single fixed function-call chain.
+Baseline (Phase 0-3): a deterministic function-pipeline, not yet an
+autonomous multi-agent graph. Phase 4 (see PLAN.md) upgrades the
+orchestration layer itself to a graph-guided multi-agent framework (e.g.
+LangGraph) where each stage is an autonomous agent capable of re-planning,
+tool use, and iterative refinement instead of a single fixed function-call
+chain.
 """
 from __future__ import annotations
 
@@ -19,12 +29,15 @@ from adis.perception.vision.model import DamageAssessment, VisionDamageAgent
 from adis.routing.router import EvacuationRouter
 
 
+
 @dataclass
 class ActionItem:
     priority: int
     location_id: str
     action: str
     rationale: str
+    status: str  # "dispatch" | "review" | "verify" -- confidence/consistency gate outcome
+    responder_team: str  # "rescue" | "logistics" | "monitoring" | "field_verification"
 
 
 @dataclass
@@ -36,6 +49,13 @@ class ActionPlan:
         for item in self.items:
             lines.append(f"[P{item.priority}] {item.location_id}: {item.action} -- {item.rationale}")
         return "\n".join(lines)
+
+    def dispatch_by_team(self) -> dict[str, list[ActionItem]]:
+        """Group action items by responder team -- the "tie to responders" step."""
+        grouped: dict[str, list[ActionItem]] = {}
+        for item in self.items:
+            grouped.setdefault(item.responder_team, []).append(item)
+        return grouped
 
 
 class ADISPipeline:
@@ -94,14 +114,28 @@ class ADISPipeline:
         items = []
         for priority, (_score, v) in enumerate(scored, start=1):
             route = router.shortest_safe_path(self.hq_node, v.location_id)
-            if v.casualty_reported:
+
+            # Confidence/consistency gate result (from CrossModalVerifier) decides
+            # whether this item is auto-dispatched, sent for human sign-off, or
+            # held back for field verification instead of acted on blindly.
+            if v.verification_status == "low_confidence":
+                status = "verify"
+                responder_team = "field_verification"
+                action = "Verify on ground before dispatch (evidence below confidence threshold)"
+            elif v.casualty_reported:
+                status = "review" if v.verification_status == "needs_review" else "dispatch"
+                responder_team = "rescue"
                 action = "Dispatch rescue team immediately"
             elif v.road_status == "blocked":
+                status = "review" if v.verification_status == "needs_review" else "dispatch"
+                responder_team = "logistics"
                 action = "Reroute supplies / clear road"
             else:
+                status = "review" if v.verification_status == "needs_review" else "dispatch"
+                responder_team = "monitoring"
                 action = "Monitor"
 
-            rationale_parts = [f"confidence={v.confidence}"]
+            rationale_parts = [f"confidence={v.confidence}", f"gate={v.verification_status}"]
             if v.contradiction:
                 rationale_parts.append("cross-modal contradiction resolved")
             if route:
@@ -116,6 +150,8 @@ class ADISPipeline:
                     location_id=v.location_id,
                     action=action,
                     rationale=", ".join(rationale_parts),
+                    status=status,
+                    responder_team=responder_team,
                 )
             )
         return ActionPlan(items=items)

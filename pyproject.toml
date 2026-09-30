@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "adis"
 version = "0.1.0"
-description = "ADIS: Agentic Disaster Intelligence System"
+description = "ADIS: Autonomous Disaster Intelligence System"
 requires-python = ">=3.10"
 readme = "README.md"
 

@@ -25,6 +25,7 @@ class VerifiedEvidence:
     casualty_reported: bool
     confidence: float
     contradiction: bool
+    verification_status: str = "confirmed"  # "confirmed" | "needs_review" | "low_confidence"
     notes: list[str] = field(default_factory=list)
 
 
@@ -36,9 +37,15 @@ class CrossModalVerifier:
     - Flag a contradiction when vision and text disagree on road passability.
     - Resolve by preferring the higher-confidence modality; if confidences are
       too close to call, default to the safer ("blocked") assumption.
+    - After fusing, run an explicit confidence/consistency gate so downstream
+      stages (routing, responder dispatch) know whether the fused evidence is
+      trustworthy enough to act on automatically, needs human sign-off, or is
+      too weak to act on at all.
     """
 
     CONTRADICTION_MARGIN = 0.15
+    ACTIONABLE_CONFIDENCE = 0.6
+    REVIEW_CONFIDENCE = 0.35
 
     def verify(
         self,
@@ -71,7 +78,8 @@ class CrossModalVerifier:
         casualty_reported = any(t.category == TriageCategory.CASUALTY for t in text_evidence)
         damage_level = self._worst_damage(vision_evidence)
         flood_level = self._worst_flood(vision_evidence)
-        confidence = self._aggregate_confidence(vision_evidence, text_evidence, contradiction)
+        confidence = round(self._aggregate_confidence(vision_evidence, text_evidence, contradiction), 2)
+        verification_status = self._consistency_gate(confidence, contradiction, notes)
 
         return VerifiedEvidence(
             location_id=location_id,
@@ -79,10 +87,30 @@ class CrossModalVerifier:
             damage_level=damage_level,
             flood_level=flood_level,
             casualty_reported=casualty_reported,
-            confidence=round(confidence, 2),
+            confidence=confidence,
             contradiction=contradiction,
+            verification_status=verification_status,
             notes=notes,
         )
+
+    def _consistency_gate(self, confidence: float, contradiction: bool, notes: list[str]) -> str:
+        """Confidence/consistency test run after fusion, before routing/dispatch.
+
+        - "confirmed": high confidence, no unresolved contradiction -> safe to
+          auto-dispatch responders.
+        - "needs_review": moderate confidence or a resolved-but-real
+          contradiction -> act, but flag for human sign-off.
+        - "low_confidence": too weak to trust -> do not auto-dispatch; route
+          to field verification instead.
+        """
+        if confidence >= self.ACTIONABLE_CONFIDENCE and not contradiction:
+            return "confirmed"
+        if confidence >= self.REVIEW_CONFIDENCE or contradiction:
+            notes.append("Confidence/consistency gate: flagged for human review before dispatch.")
+            return "needs_review"
+        notes.append("Confidence/consistency gate: below actionable threshold; routed to field verification.")
+        return "low_confidence"
+
 
     @staticmethod
     def _vision_says_road_clear(vision_evidence: list[DamageAssessment]) -> bool | None:

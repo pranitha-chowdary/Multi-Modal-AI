@@ -13,4 +13,3 @@ langgraph>=0.0.30       # agentic multi-agent orchestrator (Phase 4)
 langchain>=0.1
 rasterio>=1.3          # satellite imagery I/O (xBD/FloodNet are GeoTIFF-adjacent)
 geopandas>=0.14
-scikit-learn>=1.4

@@ -1,4 +1,4 @@
-"""ADIS: Agentic Disaster Intelligence System."""
+"""ADIS: Autonomous Disaster Intelligence System."""
 import os
 from pathlib import Path
 

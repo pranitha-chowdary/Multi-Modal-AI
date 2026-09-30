@@ -20,6 +20,10 @@ from transformers import pipeline as hf_pipeline
 
 _DEFAULT_MODEL_NAME = "typeform/distilbert-base-uncased-mnli"
 
+# Below this confidence, none of the candidate categories are reliable enough
+# to act on; fall back to INFO_ONLY rather than asserting an actionable category.
+_CONFIDENCE_THRESHOLD = 0.45
+
 
 class TriageCategory(str, Enum):
     CASUALTY = "casualty"
@@ -86,6 +90,8 @@ class TextTriageAgent:
         best_hypothesis = result["labels"][0]
         best_score = result["scores"][0]
         category = self._categories[self._hypotheses.index(best_hypothesis)]
+        if best_score < _CONFIDENCE_THRESHOLD:
+            category = TriageCategory.INFO_ONLY
 
         return TriageReport(
             location_id=location_id,

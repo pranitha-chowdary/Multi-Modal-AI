@@ -44,6 +44,22 @@ not an afterthought:
   collecting/publishing any real emergency-call or social-media text data,
   especially anything containing personal information.
 
+## 5. Related work references (papers — not downloadable raw data)
+These were checked for usable raw feed data; none expose downloadable images or
+un-redacted text directly, but they're useful as model/architecture baselines
+(see [docs/evaluation.md](evaluation.md) for how each maps to a benchmark):
+- [xBD paper](https://arxiv.org/abs/1911.09296), [DAHiTra](https://arxiv.org/abs/2208.02205),
+  [ConvNeXT multi-modal attention](https://arxiv.org/abs/2606.14963) — vision/damage baselines.
+- [FloodNet paper](https://arxiv.org/abs/2012.02951) — flood segmentation baseline.
+- [CrisisSense-LLM](https://arxiv.org/abs/2406.15477) — text triage baseline.
+- [3M multimodal earthquake pipeline](https://arxiv.org/abs/2506.03360) — its
+  [GitHub repo](https://github.com/missa7481/EMNLP25_earthquake) has sample result
+  CSVs but explicitly states raw tweet text/user data was redacted ("full dataset
+  available upon request") — not a usable raw-feed source without contacting the authors.
+- [DORA benchmark](https://arxiv.org/abs/2605.11633) — orchestrator/agent evaluation baseline.
+- [Edge-GNN road ranking](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0296045),
+  [GNN-SDE evacuation routing](https://arxiv.org/html/2501.09803) — routing agent baselines.
+
 ## Suggested local layout
 
 ```

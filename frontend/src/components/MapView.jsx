@@ -29,8 +29,12 @@ export default function MapView({ items }) {
         <CircleMarker
           key={item.location_id}
           center={[item.lat, item.lon]}
-          radius={10}
-          pathOptions={{ color: TEAM_COLORS[item.responder_team] ?? "#9fd3ff", fillOpacity: 0.8 }}
+          radius={item.notified ? 12 : 10}
+          pathOptions={{
+            color: TEAM_COLORS[item.responder_team] ?? "#9fd3ff",
+            fillOpacity: item.notified ? 0.95 : 0.6,
+            weight: item.notified ? 3 : 1,
+          }}
         >
           <Popup>
             <strong>{item.location_id}</strong>
@@ -38,6 +42,8 @@ export default function MapView({ items }) {
             [P{item.priority}] {item.action}
             <br />
             {item.rationale}
+            <br />
+            {item.notified ? "✓ Responder team notified" : "Not yet notified"}
           </Popup>
         </CircleMarker>
       ))}

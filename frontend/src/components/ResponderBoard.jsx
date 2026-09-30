@@ -12,7 +12,7 @@ const TEAM_ORDER = ["rescue", "logistics", "field_verification", "monitoring"];
  * per responder team, populated from the latest alert's `dispatch` map
  * (see ActionPlan.dispatch_by_team on the backend).
  */
-export default function ResponderBoard({ dispatch }) {
+export default function ResponderBoard({ dispatch, onNotify }) {
   const teams = TEAM_ORDER.filter((team) => dispatch[team]?.length);
 
   if (teams.length === 0) {
@@ -32,6 +32,13 @@ export default function ResponderBoard({ dispatch }) {
               </div>
               <div className="action">{item.action}</div>
               <div className="rationale">{item.rationale}</div>
+              {item.notified ? (
+                <div className="notified-badge">✓ Team notified</div>
+              ) : (
+                <button type="button" className="notify-btn" onClick={() => onNotify?.(item.location_id)}>
+                  Notify {TEAM_LABELS[team] ?? team}
+                </button>
+              )}
             </div>
           ))}
         </div>

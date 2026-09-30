@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from adis.knowledge_graph.builder import KnowledgeGraphBuilder
@@ -30,6 +30,12 @@ _text_agent = TextTriageAgent()
 # Shared broadcast hub: pushes action-plan updates and alerts to every
 # connected dashboard over /ws/alerts, no polling required.
 _alert_manager = ConnectionManager()
+
+# Latest known action item per location_id, across all /analyze calls -- lets
+# the dashboard show a persistent common operating picture (map + dispatch
+# board) instead of losing state when a newer scenario is run, and lets
+# /dispatch/{location_id}/notify mark a specific item as sent to responders.
+_latest_items: dict[str, dict] = {}
 
 
 class RoadIn(BaseModel):
@@ -100,12 +106,16 @@ async def analyze(request: AnalyzeRequest) -> dict:
         vision_inputs=[(v.image_path, v.location_id, v.source) for v in request.vision_inputs],
         text_inputs=[(t.text, t.location_id, t.source) for t in request.text_inputs],
     )
+    for item in plan.items:
+        _latest_items[item.location_id] = {**item.__dict__, "notified": False}
+
     dispatch = {
-        team: [item.__dict__ for item in items] for team, items in plan.dispatch_by_team().items()
+        team: [_latest_items[item.location_id] for item in items]
+        for team, items in plan.dispatch_by_team().items()
     }
     result = {
         "action_plan_text": plan.as_text(),
-        "items": [item.__dict__ for item in plan.items],
+        "items": [_latest_items[item.location_id] for item in plan.items],
         "dispatch": dispatch,
     }
 
@@ -119,6 +129,29 @@ async def analyze(request: AnalyzeRequest) -> dict:
         }
     )
     return result
+
+
+@app.post("/dispatch/{location_id}/notify")
+async def notify_responders(location_id: str) -> dict:
+    """Marks an action item as sent to its responder team and broadcasts the
+    update to every connected dashboard -- the actual "make responders aware
+    of it" step, not just a locally-displayed action plan.
+    """
+    item = _latest_items.get(location_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Unknown location_id: {location_id}")
+
+    item["notified"] = True
+    item["notified_at"] = datetime.now(timezone.utc).isoformat()
+
+    await _alert_manager.broadcast(
+        {
+            "type": "dispatch_notification",
+            "timestamp": item["notified_at"],
+            "item": item,
+        }
+    )
+    return item
 
 
 @app.websocket("/ws/alerts")

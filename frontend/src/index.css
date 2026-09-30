@@ -253,6 +253,28 @@ body {
   text-transform: uppercase;
 }
 
+.notify-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid #3a4a6b;
+  background: #1a2436;
+  color: #9fd3ff;
+  cursor: pointer;
+}
+
+.notify-btn:hover {
+  background: #22314a;
+}
+
+.notified-badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #16321f;
+  color: #63e08a;
+}
+
 /* Responder dispatch board */
 .responder-board {
   display: flex;

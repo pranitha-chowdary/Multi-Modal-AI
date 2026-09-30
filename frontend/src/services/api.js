@@ -14,3 +14,19 @@ export async function runAnalysis(scenario) {
   }
   return response.json();
 }
+
+/**
+ * Marks an action item as sent to its responder team. The backend broadcasts
+ * this over /ws/alerts so every connected dashboard (and, in a real
+ * deployment, the responders' own devices) sees it live.
+ */
+export async function notifyTeam(locationId) {
+  const response = await fetch(`/api/dispatch/${encodeURIComponent(locationId)}/notify`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Notify request failed (${response.status}): ${detail}`);
+  }
+  return response.json();
+}

@@ -6,6 +6,12 @@ const NODE_TYPES = ["hospital", "shelter", "building"];
 const EXAMPLE_SCENARIO = {
   hqNode: "HQ",
   intersections: "HQ, N1, N2, N3",
+  intersectionCoords: {
+    HQ: [17.6868, 83.2185],
+    N1: [17.692, 83.219],
+    N2: [17.698, 83.22],
+    N3: [17.689, 83.235],
+  },
   roads: [
     { location_id: "road_hq_n1", node_a: "HQ", node_b: "N1", length_km: "2.0" },
     { location_id: "road_n1_n2", node_a: "N1", node_b: "N2", length_km: "1.5" },
@@ -27,6 +33,13 @@ const EXAMPLE_SCENARIO = {
 const BLOCKED_ROUTE_SCENARIO = {
   hqNode: "HQ",
   intersections: "HQ, N1, N2, N3, N4",
+  intersectionCoords: {
+    HQ: [17.6868, 83.2185],
+    N1: [17.692, 83.219],
+    N2: [17.698, 83.22],
+    N3: [17.689, 83.235],
+    N4: [17.705, 83.245],
+  },
   roads: [
     { location_id: "road_hq_n1", node_a: "HQ", node_b: "N1", length_km: "2.0" },
     { location_id: "road_n1_n2", node_a: "N1", node_b: "N2", length_km: "1.5" },
@@ -60,24 +73,101 @@ function updateRow(list, setList, idx, field, value) {
   setList(list.map((row, i) => (i === idx ? { ...row, [field]: value } : row)));
 }
 
+// Converts a small km offset to a lat/lon degree offset near the given
+// latitude (good enough for placing demo nodes a few hundred meters/km
+// apart around a real GPS fix - not for long-distance navigation).
+function offsetCoords(lat, lon, dNorthKm, dEastKm) {
+  const dLat = dNorthKm / 111;
+  const dLon = dEastKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return [lat + dLat, lon + dLon];
+}
+
+// Builds a small synthetic local road network anchored at the user's real
+// device location - there's no live OSM road network loaded in this manual
+// scenario mode (see KnowledgeGraphBuilder.from_osm for the real-network
+// path), so this places HQ/intersections/facilities relative to the actual
+// GPS fix rather than a hardcoded demo city.
+function buildLiveLocationScenario(lat, lon) {
+  const n1 = offsetCoords(lat, lon, 0.8, 0);
+  const n2 = offsetCoords(lat, lon, 1.2, 1.0);
+  const n3 = offsetCoords(lat, lon, -0.6, 1.3);
+  return {
+    hqNode: "HQ",
+    intersections: "HQ, N1, N2, N3",
+    intersectionCoords: { HQ: [lat, lon], N1: n1, N2: n2, N3: n3 },
+    roads: [
+      { location_id: "road_hq_n1", node_a: "HQ", node_b: "N1", length_km: "0.8" },
+      { location_id: "road_n1_n2", node_a: "N1", node_b: "N2", length_km: "0.6" },
+      { location_id: "road_n1_n3", node_a: "N1", node_b: "N3", length_km: "1.4" },
+    ],
+    facilities: [
+      {
+        location_id: "hospital_1",
+        node_type: "hospital",
+        name: "Nearest Hospital",
+        nearest_intersection: "N2",
+        capacity: "",
+        lat: String(n2[0]),
+        lon: String(n2[1]),
+      },
+      {
+        location_id: "shelter_1",
+        node_type: "shelter",
+        name: "Nearest Shelter",
+        nearest_intersection: "N3",
+        capacity: "",
+        lat: String(n3[0]),
+        lon: String(n3[1]),
+      },
+    ],
+    visionInputs: [{ image_path: "data/raw/image.png", location_id: "hospital_1", source: "satellite" }],
+    textInputs: [
+      { text: "People trapped, need rescue near hospital", location_id: "hospital_1", source: "emergency-call" },
+    ],
+  };
+}
+
 export default function ScenarioForm({ onResult }) {
   const [hqNode, setHqNode] = useState("HQ");
   const [intersections, setIntersections] = useState("HQ, N1, N2, N3");
+  const [intersectionCoords, setIntersectionCoords] = useState({});
   const [roads, setRoads] = useState([emptyRoad()]);
   const [facilities, setFacilities] = useState([emptyFacility()]);
   const [visionInputs, setVisionInputs] = useState([emptyVisionInput()]);
   const [textInputs, setTextInputs] = useState([emptyTextInput()]);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState(null);
 
   const loadScenario = (scenario) => {
     setHqNode(scenario.hqNode);
     setIntersections(scenario.intersections);
+    setIntersectionCoords(scenario.intersectionCoords ?? {});
     setRoads(scenario.roads);
     setFacilities(scenario.facilities);
     setVisionInputs(scenario.visionInputs.length ? scenario.visionInputs : [emptyVisionInput()]);
     setTextInputs(scenario.textInputs);
     setError(null);
+  };
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser.");
+      return;
+    }
+    setLocating(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        loadScenario(buildLiveLocationScenario(position.coords.latitude, position.coords.longitude));
+        setLocating(false);
+      },
+      (err) => {
+        setError(`Could not get your location: ${err.message}`);
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSubmit = async (event) => {
@@ -91,6 +181,7 @@ export default function ScenarioForm({ onResult }) {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean),
+        intersection_coords: intersectionCoords,
         roads: roads
           .filter((r) => r.location_id && r.node_a && r.node_b)
           .map((r) => ({ ...r, length_km: parseFloat(r.length_km) || 0 })),
@@ -118,6 +209,9 @@ export default function ScenarioForm({ onResult }) {
     <form className="scenario-form" onSubmit={handleSubmit}>
       <div className="scenario-form-toolbar">
         <h2>Run a Scenario</h2>
+        <button type="button" className="secondary" onClick={useMyLocation} disabled={locating}>
+          {locating ? "Locating..." : "\ud83d\udccd Use My Location"}
+        </button>
         <button type="button" className="secondary" onClick={() => loadScenario(EXAMPLE_SCENARIO)}>
           Load Example: Rescue
         </button>

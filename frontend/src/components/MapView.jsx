@@ -1,6 +1,7 @@
-import { CircleMarker, MapContainer, Popup, TileLayer } from "react-leaflet";
+import { useEffect } from "react";
+import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 
-const DEFAULT_CENTER = [17.6868, 83.2185]; // Visakhapatnam, AP - default demo region
+const DEFAULT_CENTER = [17.6868, 83.2185]; // Visakhapatnam, AP - fallback center until real markers arrive
 
 const TEAM_COLORS = {
   rescue: "#f08c8c",
@@ -9,15 +10,36 @@ const TEAM_COLORS = {
   monitoring: "#63e08a",
 };
 
+const ROUTE_COLOR = "#4a90ff"; // Google/Apple-Maps-style blue route line
+
+/**
+ * Re-centers/zooms the map to fit every known marker whenever the item set
+ * changes - so the view follows wherever the scenario is anchored (a fixed
+ * demo city, or the user's real device location) instead of staying pinned
+ * to a hardcoded default center.
+ */
+function FitToMarkers({ points }) {
+  const map = useMap();
+  useEffect(() => {
+    if (points.length === 0) return;
+    if (points.length === 1) {
+      map.setView(points[0], 14);
+    } else {
+      map.fitBounds(points, { padding: [40, 40] });
+    }
+  }, [map, points]);
+  return null;
+}
+
 /**
  * Plots verified locations from incoming action-plan alerts on a live map,
- * colored by which responder team the item was dispatched to. Location
- * coordinates are optional in the current alert payload; markers only
- * render for items that carry a lat/lon (see PLAN.md Phase 3 for real
- * KG-backed coordinates).
+ * colored by which responder team the item was dispatched to, and draws the
+ * HQ -> location route (from EvacuationRouter.shortest_safe_path) as a blue
+ * polyline when every node on that path has known coordinates.
  */
 export default function MapView({ items }) {
   const withCoords = items.filter((item) => item.lat != null && item.lon != null);
+  const allPoints = withCoords.map((item) => [item.lat, item.lon]);
 
   return (
     <MapContainer center={DEFAULT_CENTER} zoom={12} style={{ height: "100%", width: "100%" }}>
@@ -25,6 +47,17 @@ export default function MapView({ items }) {
         attribution='&copy; OpenStreetMap contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <FitToMarkers points={allPoints} />
+      {withCoords.map(
+        (item) =>
+          item.route_coords?.length > 1 && (
+            <Polyline
+              key={`route-${item.location_id}`}
+              positions={item.route_coords}
+              pathOptions={{ color: ROUTE_COLOR, weight: 4, opacity: 0.8 }}
+            />
+          )
+      )}
       {withCoords.map((item) => (
         <CircleMarker
           key={item.location_id}

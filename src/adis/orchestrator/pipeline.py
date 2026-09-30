@@ -40,6 +40,8 @@ class ActionItem:
     responder_team: str  # "rescue" | "logistics" | "monitoring" | "field_verification"
     lat: float | None = None
     lon: float | None = None
+    route_path: list[str] | None = None  # node ids from HQ to this location, in order
+    route_coords: list[list[float]] | None = None  # [lat, lon] pairs, present only if every node on the path has coordinates
 
 
 @dataclass
@@ -118,6 +120,8 @@ class ADISPipeline:
             route = router.shortest_safe_path(self.hq_node, v.location_id)
             node_data = self.kg_builder.graph.nodes.get(v.location_id, {})
             lat, lon = node_data.get("lat"), node_data.get("lon")
+            route_path: list[str] | None = None
+            route_coords: list[list[float]] | None = None
 
             # Confidence/consistency gate result (from CrossModalVerifier) decides
             # whether this item is auto-dispatched, sent for human sign-off, or
@@ -145,6 +149,17 @@ class ADISPipeline:
             if route:
                 path, dist = route
                 rationale_parts.append(f"route via {len(path)} nodes, {dist:.2f}km")
+                route_path = path
+                coords = [
+                    [self.kg_builder.graph.nodes[n]["lat"], self.kg_builder.graph.nodes[n]["lon"]]
+                    for n in path
+                    if self.kg_builder.graph.nodes[n].get("lat") is not None
+                    and self.kg_builder.graph.nodes[n].get("lon") is not None
+                ]
+                # Only expose a polyline if every node on the path has real
+                # coordinates -- a partial line (missing intermediate hops)
+                # would misrepresent the route on the map.
+                route_coords = coords if len(coords) == len(path) else None
             else:
                 rationale_parts.append("no safe route found")
 
@@ -158,6 +173,8 @@ class ADISPipeline:
                     responder_team=responder_team,
                     lat=lat,
                     lon=lon,
+                    route_path=route_path,
+                    route_coords=route_coords,
                 )
             )
         return ActionPlan(items=items)

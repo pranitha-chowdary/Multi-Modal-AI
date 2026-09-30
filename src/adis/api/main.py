@@ -70,6 +70,7 @@ class TextInputIn(BaseModel):
 class AnalyzeRequest(BaseModel):
     hq_node: str
     intersections: list[str] = []
+    intersection_coords: dict[str, list[float]] = {}  # node_id -> [lat, lon], optional
     roads: list[RoadIn] = []
     facilities: list[FacilityIn] = []
     vision_inputs: list[VisionInputIn] = []
@@ -85,7 +86,8 @@ def health() -> dict:
 async def analyze(request: AnalyzeRequest) -> dict:
     kg_builder = KnowledgeGraphBuilder()
     for node_id in request.intersections:
-        kg_builder.add_intersection(node_id)
+        coords = request.intersection_coords.get(node_id)
+        kg_builder.add_intersection(node_id, lat=coords[0] if coords else None, lon=coords[1] if coords else None)
     for road in request.roads:
         kg_builder.add_road(road.location_id, road.node_a, road.node_b, road.length_km)
     for facility in request.facilities:

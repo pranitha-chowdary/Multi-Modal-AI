@@ -45,6 +45,8 @@ class KnowledgeGraphBuilder:
         name: str,
         nearest_intersection: str,
         capacity: int | None = None,
+        lat: float | None = None,
+        lon: float | None = None,
     ) -> None:
         self.graph.add_node(
             location_id,
@@ -53,6 +55,8 @@ class KnowledgeGraphBuilder:
             status=FacilityStatus.UNKNOWN,
             capacity=capacity,
             confidence=0.0,
+            lat=lat,
+            lon=lon,
         )
         self.graph.add_edge(
             location_id, nearest_intersection, length_km=0.05, status=RoadStatus.CLEAR, confidence=1.0

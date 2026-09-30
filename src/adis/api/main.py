@@ -45,6 +45,8 @@ class FacilityIn(BaseModel):
     name: str
     nearest_intersection: str
     capacity: int | None = None
+    lat: float | None = None
+    lon: float | None = None
 
 
 class VisionInputIn(BaseModel):
@@ -87,6 +89,8 @@ async def analyze(request: AnalyzeRequest) -> dict:
             facility.name,
             facility.nearest_intersection,
             facility.capacity,
+            facility.lat,
+            facility.lon,
         )
 
     pipeline = ADISPipeline(

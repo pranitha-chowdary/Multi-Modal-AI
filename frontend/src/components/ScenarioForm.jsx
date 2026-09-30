@@ -12,8 +12,8 @@ const EXAMPLE_SCENARIO = {
     { location_id: "road_n1_n3", node_a: "N1", node_b: "N3", length_km: "3.0" },
   ],
   facilities: [
-    { location_id: "hospital_1", node_type: "hospital", name: "City Hospital", nearest_intersection: "N2", capacity: "" },
-    { location_id: "shelter_1", node_type: "shelter", name: "Community Shelter", nearest_intersection: "N3", capacity: "" },
+    { location_id: "hospital_1", node_type: "hospital", name: "City Hospital", nearest_intersection: "N2", capacity: "", lat: "17.6980", lon: "83.2200" },
+    { location_id: "shelter_1", node_type: "shelter", name: "Community Shelter", nearest_intersection: "N3", capacity: "", lat: "17.6890", lon: "83.2350" },
   ],
   visionInputs: [{ image_path: "data/raw/image.png", location_id: "hospital_1", source: "satellite" }],
   textInputs: [
@@ -21,11 +21,33 @@ const EXAMPLE_SCENARIO = {
   ],
 };
 
+// Second demo case: blocked road + an unreachable facility (no road edge to N4
+// at all) - shows the "reroute supplies" action and the "no safe route found"
+// degraded-but-safe fallback in the rationale, without crashing.
+const BLOCKED_ROUTE_SCENARIO = {
+  hqNode: "HQ",
+  intersections: "HQ, N1, N2, N3, N4",
+  roads: [
+    { location_id: "road_hq_n1", node_a: "HQ", node_b: "N1", length_km: "2.0" },
+    { location_id: "road_n1_n2", node_a: "N1", node_b: "N2", length_km: "1.5" },
+    { location_id: "road_n1_n3", node_a: "N1", node_b: "N3", length_km: "3.0" },
+  ],
+  facilities: [
+    { location_id: "shelter_1", node_type: "shelter", name: "Community Shelter", nearest_intersection: "N3", capacity: "", lat: "17.6890", lon: "83.2350" },
+    { location_id: "clinic_1", node_type: "building", name: "Isolated Clinic", nearest_intersection: "N4", capacity: "", lat: "17.7050", lon: "83.2450" },
+  ],
+  visionInputs: [],
+  textInputs: [
+    { text: "Main road to the shelter is completely blocked by fallen debris", location_id: "shelter_1", source: "field-report" },
+    { text: "Clinic staff need supplies, road access unclear", location_id: "clinic_1", source: "radio" },
+  ],
+};
+
 function emptyRoad() {
   return { location_id: "", node_a: "", node_b: "", length_km: "" };
 }
 function emptyFacility() {
-  return { location_id: "", node_type: "hospital", name: "", nearest_intersection: "", capacity: "" };
+  return { location_id: "", node_type: "hospital", name: "", nearest_intersection: "", capacity: "", lat: "", lon: "" };
 }
 function emptyVisionInput() {
   return { image_path: "", location_id: "", source: "satellite" };
@@ -48,13 +70,13 @@ export default function ScenarioForm({ onResult }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadExample = () => {
-    setHqNode(EXAMPLE_SCENARIO.hqNode);
-    setIntersections(EXAMPLE_SCENARIO.intersections);
-    setRoads(EXAMPLE_SCENARIO.roads);
-    setFacilities(EXAMPLE_SCENARIO.facilities);
-    setVisionInputs(EXAMPLE_SCENARIO.visionInputs);
-    setTextInputs(EXAMPLE_SCENARIO.textInputs);
+  const loadScenario = (scenario) => {
+    setHqNode(scenario.hqNode);
+    setIntersections(scenario.intersections);
+    setRoads(scenario.roads);
+    setFacilities(scenario.facilities);
+    setVisionInputs(scenario.visionInputs.length ? scenario.visionInputs : [emptyVisionInput()]);
+    setTextInputs(scenario.textInputs);
     setError(null);
   };
 
@@ -74,7 +96,12 @@ export default function ScenarioForm({ onResult }) {
           .map((r) => ({ ...r, length_km: parseFloat(r.length_km) || 0 })),
         facilities: facilities
           .filter((f) => f.location_id && f.nearest_intersection)
-          .map((f) => ({ ...f, capacity: f.capacity ? parseInt(f.capacity, 10) : null })),
+          .map((f) => ({
+            ...f,
+            capacity: f.capacity ? parseInt(f.capacity, 10) : null,
+            lat: f.lat ? parseFloat(f.lat) : null,
+            lon: f.lon ? parseFloat(f.lon) : null,
+          })),
         vision_inputs: visionInputs.filter((v) => v.image_path && v.location_id),
         text_inputs: textInputs.filter((t) => t.text && t.location_id),
       };
@@ -91,8 +118,11 @@ export default function ScenarioForm({ onResult }) {
     <form className="scenario-form" onSubmit={handleSubmit}>
       <div className="scenario-form-toolbar">
         <h2>Run a Scenario</h2>
-        <button type="button" className="secondary" onClick={loadExample}>
-          Load Example
+        <button type="button" className="secondary" onClick={() => loadScenario(EXAMPLE_SCENARIO)}>
+          Load Example: Rescue
+        </button>
+        <button type="button" className="secondary" onClick={() => loadScenario(BLOCKED_ROUTE_SCENARIO)}>
+          Load Example: Blocked Road
         </button>
       </div>
 
@@ -170,6 +200,16 @@ export default function ScenarioForm({ onResult }) {
               placeholder="nearest_intersection"
               value={facility.nearest_intersection}
               onChange={(e) => updateRow(facilities, setFacilities, idx, "nearest_intersection", e.target.value)}
+            />
+            <input
+              placeholder="lat (optional, for map)"
+              value={facility.lat}
+              onChange={(e) => updateRow(facilities, setFacilities, idx, "lat", e.target.value)}
+            />
+            <input
+              placeholder="lon (optional, for map)"
+              value={facility.lon}
+              onChange={(e) => updateRow(facilities, setFacilities, idx, "lon", e.target.value)}
             />
             <button
               type="button"

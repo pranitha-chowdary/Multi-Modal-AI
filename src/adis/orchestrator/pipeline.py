@@ -38,6 +38,8 @@ class ActionItem:
     rationale: str
     status: str  # "dispatch" | "review" | "verify" -- confidence/consistency gate outcome
     responder_team: str  # "rescue" | "logistics" | "monitoring" | "field_verification"
+    lat: float | None = None
+    lon: float | None = None
 
 
 @dataclass
@@ -114,6 +116,8 @@ class ADISPipeline:
         items = []
         for priority, (_score, v) in enumerate(scored, start=1):
             route = router.shortest_safe_path(self.hq_node, v.location_id)
+            node_data = self.kg_builder.graph.nodes.get(v.location_id, {})
+            lat, lon = node_data.get("lat"), node_data.get("lon")
 
             # Confidence/consistency gate result (from CrossModalVerifier) decides
             # whether this item is auto-dispatched, sent for human sign-off, or
@@ -152,6 +156,8 @@ class ADISPipeline:
                     rationale=", ".join(rationale_parts),
                     status=status,
                     responder_team=responder_team,
+                    lat=lat,
+                    lon=lon,
                 )
             )
         return ActionPlan(items=items)
